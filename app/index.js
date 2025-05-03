@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import axios from 'axios';
+import { useRouter } from 'expo-router';
+import 'react-native-gesture-handler';
+
 
 const LoginScreen = ({ navigation, onLogin }) => {  // Accept onLogin here
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleLogin = () => {
-    const apiUrl = 'http://192.168.229.113:8000/api/login/'; // Use your LAN IP for physical devices
+    const apiUrl = 'http://192.168.1.9:8000/api/login/'; // Use your LAN IP for physical devices
 
     axios
       .post(apiUrl, { username, password })
@@ -17,11 +21,9 @@ const LoginScreen = ({ navigation, onLogin }) => {  // Accept onLogin here
         const normalizedRole = role.toLowerCase();
 
         if (normalizedRole === 'admin') {
-          onLogin(); // ✅ This sets isLoggedIn = true, and THEN Dashboard is available
+          router.push('/(drawer)/AdminDashboard'); // ✅ Navigate to Admin Dashboard
         } else if (normalizedRole === 'cashier') {
-          // You can handle the cashier route separately if needed
-          // For now just show an error if CashierDashboard is not implemented
-          setError('Cashier dashboard not implemented');
+          router.push('/(drawer)/dashboard/CashierDashboard'); // Create this screen if needed
         } else {
           setError('Invalid role');
         }

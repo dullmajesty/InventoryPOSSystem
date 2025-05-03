@@ -1,8 +1,11 @@
-// App.js
 import React from 'react';
-import AppNavigator from './AppNavigator';
+import { NavigationContainer } from '@react-navigation/native';
+import DrawerNavigator from './component/Drawer'; // Pointing to your drawer setup
 
 export default function App() {
-  return <AppNavigator />;
+  return (
+    <NavigationContainer>
+      <DrawerNavigator />
+    </NavigationContainer>
+  );
 }
-  
