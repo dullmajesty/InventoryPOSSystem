@@ -39,11 +39,6 @@ const AdminDashboardScreen = ({ navigation }) => {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Admin Dashboard</Text>
-      </View>
-
       {/* Dashboard Body */}
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Overview</Text>

@@ -12,7 +12,7 @@ const LoginScreen = ({ navigation, onLogin }) => {  // Accept onLogin here
   const router = useRouter();
 
   const handleLogin = () => {
-    const apiUrl = 'http://192.168.1.9:8000/api/login/'; // Use your LAN IP for physical devices
+    const apiUrl = 'http://192.168.43.118:8000/api/login/'; // Use your LAN IP for physical devices
 
     axios
       .post(apiUrl, { username, password })
