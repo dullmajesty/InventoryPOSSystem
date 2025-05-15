@@ -1,3 +1,4 @@
+import RefreshWrapper from '../../component/Drawer/RefreshWrapper';
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -17,6 +18,7 @@ const InventoryScreen = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -28,10 +30,10 @@ const InventoryScreen = () => {
 
   const fetchInventoryData = async () => {
     try {
-      const response = await fetch('http://192.168.43.118:8000/api/inventory/');
+      const response = await fetch('http://192.168.1.9:8000/api/inventory/');
       const data = await response.json();
       setInventory(data);
-      setFilteredInventory(data);
+      setFilteredInventory(data); // Show all items initially
     } catch (error) {
       console.error('Error fetching inventory:', error);
     }
@@ -39,39 +41,61 @@ const InventoryScreen = () => {
 
   const fetchCategoriesData = async () => {
     try {
-      const response = await fetch('http://192.168.43.118:8000/api/categories/');
+      const response = await fetch('http://192.168.1.9:8000/api/categories/');
       const data = await response.json();
       const formatted = data.map((cat) => ({ id: cat.id, name: cat.name }));
       setCategories(formatted);
-      if (formatted.length > 0) {
-        const first = formatted[0];
-        setSelectedCategory(first);
-        setFilteredInventory((prev) =>
-          prev.filter((item) => item.category === first.id)
-        );
-      }
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
   };
 
   const handleCategorySelect = (category) => {
-    setSelectedCategory(category);
-    const filtered = inventory.filter((item) => item.category === category.id);
-    setFilteredInventory(filtered);
+    if (selectedCategory?.id === category.id) {
+      setSelectedCategory(null);
+      setFilteredInventory(inventory); // Show all if unselected
+    } else {
+      setSelectedCategory(category);
+      const filtered = inventory.filter((item) => item.category === category.id);
+      setFilteredInventory(filtered);
+    }
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.card}>
-      <Image source={{ uri: item.image }} style={styles.image} />
-      <View style={styles.info}>
-        <Text style={styles.name}>{item.name}</Text>
-        <Text style={styles.desc}>{item.description}</Text>
-        <Text style={styles.details}>Qty: {item.quantity} {item.unit}</Text>
-        <Text style={styles.details}>Price: ₱{item.price}</Text>
+  const handleAllItems = () => {
+    setSelectedCategory(null);
+    setFilteredInventory(inventory);
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([fetchInventoryData(), fetchCategoriesData()]);
+    setRefreshing(false);
+  };
+
+  const renderItem = ({ item }) => {
+    const lowStock = item.quantity <= 5;
+
+    return (
+      <View style={styles.card}>
+        <Image source={{ uri: item.image }} style={styles.image} resizeMode="cover" />
+        <View style={styles.info}>
+          <Text style={styles.name}>{item.name}</Text>
+          <Text style={styles.desc}>{item.description}</Text>
+          <View style={styles.metaRow}>
+            <Text
+              style={[
+                styles.stock,
+                { color: lowStock ? '#d32f2f' : '#388e3c', fontWeight: '600' },
+              ]}
+            >
+              Qty: {item.quantity} {item.unit}
+            </Text>
+            <Text style={styles.price}>₱{item.price}</Text>
+          </View>
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -80,9 +104,28 @@ const InventoryScreen = () => {
           <ActivityIndicator size="large" color="#00796b" />
         </View>
       ) : (
-        <>
+        <RefreshWrapper refreshing={refreshing} onRefresh={handleRefresh}>
+          <Text style={styles.header}>Inventory List</Text>
+
           <View style={styles.categoriesContainer}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <TouchableOpacity
+                style={[
+                  styles.categoryButton,
+                  !selectedCategory && styles.categoryButtonSelected,
+                ]}
+                onPress={handleAllItems}
+              >
+                <Text
+                  style={[
+                    styles.categoryText,
+                    !selectedCategory && styles.categoryTextSelected,
+                  ]}
+                >
+                  All Items
+                </Text>
+              </TouchableOpacity>
+
               {categories.map((category) => {
                 const isSelected = selectedCategory?.id === category.id;
                 return (
@@ -115,7 +158,7 @@ const InventoryScreen = () => {
             contentContainerStyle={styles.list}
             showsVerticalScrollIndicator={false}
           />
-        </>
+        </RefreshWrapper>
       )}
     </SafeAreaView>
   );
@@ -130,6 +173,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
   categoriesContainer: {
     paddingHorizontal: 16,
@@ -195,17 +245,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   desc: {
     color: '#555',
     fontSize: 14,
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  details: {
-    fontSize: 14,
-    color: '#444',
+  metaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 4,
+  },
+  stock: {
+    fontSize: 14,
+  },
+  price: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e88e5',
   },
 });
 

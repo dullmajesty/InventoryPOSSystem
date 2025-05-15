@@ -1,151 +1,133 @@
+import RefreshWrapper from '../../component/Drawer/RefreshWrapper';
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  ScrollView,
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, Dimensions } from 'react-native';
+import axios from 'axios';
 import { LineChart } from 'react-native-chart-kit';
 
-const screenWidth = Dimensions.get('window').width;
-
-export default function SalesReport() {
+const SalesReportScreen = () => {
   const [salesData, setSalesData] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [totalSales, setTotalSales] = useState(0);
   const [selectedPeriod, setSelectedPeriod] = useState('today');
-  const [chartData, setChartData] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchSalesData = async (period = selectedPeriod) => {
+    try {
+      if (!refreshing) setLoading(true);
+      const params = { period };
+      const response = await axios.get('http://192.168.1.9:8000/api/sales-report/', { params });
+
+      setSalesData(response.data.sales_data);
+      setTotalSales(response.data.total_sales);
+      setSelectedPeriod(response.data.selected_period || period);
+    } catch (error) {
+      console.error('Error fetching sales data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    fetchSalesData(selectedPeriod);
-  }, [selectedPeriod]);
+    fetchSalesData('today');
+  }, []);
 
-  const fetchSalesData = (period) => {
-    setLoading(true);
-    fetch(`http://192.168.43.118:8000/api/sales-report/?period=${period}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.sales) {
-          setSalesData(data.sales);
-          setTotalSales(data.total_sales || 0);
-
-          const labels = data.sales.map((sale) => sale.date);
-          const amounts = data.sales.map((sale) => parseFloat(sale.subtotal));
-          setChartData({
-            labels,
-            datasets: [{ data: amounts }],
-          });
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchSalesData();
   };
 
-  const renderHeader = () => (
-    <View style={styles.tableHeader}>
-      <Text style={[styles.cell, styles.headerCell]}>Date</Text>
-      <Text style={[styles.cell, styles.headerCell]}>Item</Text>
-      <Text style={[styles.cell, styles.headerCell]}>Price</Text>
-      <Text style={[styles.cell, styles.headerCell]}>Qty</Text>
-      <Text style={[styles.cell, styles.headerCell]}>Subtotal</Text>
-    </View>
-  );
-
-  const renderRow = ({ item }) => (
-    <View style={styles.tableRow}>
-      <Text style={styles.cell}>{item.date}</Text>
-      <Text style={styles.cell}>{item.item_name}</Text>
-      <Text style={styles.cell}>₱{item.price}</Text>
-      <Text style={styles.cell}>{item.quantity}</Text>
-      <Text style={styles.cell}>₱{item.subtotal}</Text>
-    </View>
-  );
-
-  const handleYearChange = (direction) => {
-    const newYear = direction === 'prev' ? selectedYear - 1 : selectedYear + 1;
-    setSelectedYear(newYear);
-    // Optional: fetch year-specific data based on newYear
+  const getChartData = () => {
+    const labels = salesData.map((s, index) => {
+      const date = new Date(s.timestamp);
+      return index % 3 === 0 ? `${date.getMonth() + 1}/${date.getDate()}` : '';
+    });
+    const data = salesData.map((s) => s.total_price);
+    return { labels, datasets: [{ data }] };
   };
+  
+
+  if (loading && !refreshing) return <Text style={{ padding: 20 }}>Loading...</Text>;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Sales Report - {selectedPeriod.toUpperCase()}</Text>
+    <RefreshWrapper refreshing={refreshing} onRefresh={handleRefresh}>
+      <FlatList
+        ListHeaderComponent={
+          <View style={styles.container}>
+            <Text style={styles.title}>Sales Report ({selectedPeriod})</Text>
+            <Text style={styles.totalSales}>Total Sales: ₱{totalSales}</Text>
 
-      {/* Period Tab Buttons */}
-      <View style={styles.periodButtons}>
-        {['today', 'week', 'month', 'year'].map((period, index, array) => (
-          <TouchableOpacity
-            key={period}
-            onPress={() => setSelectedPeriod(period)}
-            style={[
-              styles.periodButton,
-              selectedPeriod === period && styles.periodButtonActive,
-              index === array.length - 1 && { borderRightWidth: 0 },
-            ]}
-          >
-            <Text
-              style={[
-                styles.periodButtonText,
-                selectedPeriod === period && styles.periodButtonActiveText,
-              ]}
-            >
-              {period.charAt(0).toUpperCase() + period.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#008585" />
-      ) : (
-        <>
-          {/* Chart */}
-          {chartData.labels?.length > 0 && (
-            <View style={styles.chartWrapper}>
-              <Text style={styles.chartTitle}>{salesData.length} Transactions</Text>
-              <LineChart
-                data={chartData}
-                width={screenWidth - 40}
-                height={220}
-                chartConfig={{
-                  backgroundGradientFrom: '#3faaa6',
-                  backgroundGradientTo: '#7cd5d3',
-                  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                  labelColor: () => '#fff',
-                  style: { borderRadius: 12 },
-                }}
-                bezier
-                style={{ borderRadius: 12 }}
-              />
+            <View style={styles.periodButtons}>
+              {['today', 'week', 'month', 'year'].map((period) => (
+                <View
+                  key={period}
+                  style={[
+                    styles.periodButton,
+                    selectedPeriod === period && styles.periodButtonActive,
+                  ]}
+                >
+                  <Text
+                    onPress={() => fetchSalesData(period)}
+                    style={[
+                      styles.periodButtonText,
+                      selectedPeriod === period && styles.periodButtonActiveText,
+                    ]}
+                  >
+                    {period.charAt(0).toUpperCase() + period.slice(1)}
+                  </Text>
+                </View>
+              ))}
             </View>
-          )}
 
-          {/* Total Sales */}
-          <Text style={styles.totalSales}>Total Sales: ₱{totalSales.toFixed(2)}</Text>
+            {salesData.length > 0 && (
+              <LineChart
+                data={getChartData()}
+                width={Dimensions.get('window').width - 40}
+                height={250}
+                yAxisLabel="₱"
+                chartConfig={{
+                  backgroundColor: '#ffffff',
+                  backgroundGradientFrom: '#ffffff',
+                  backgroundGradientTo: '#ffffff',
+                  decimalPlaces: 2,
+                  color: () => `#2E5EAA`,
+                  labelColor: () => `#333`,
+                  propsForDots: {
+                    r: '4',
+                    strokeWidth: '2',
+                    stroke: '#2E5EAA',
+                  },
+                }}
+                style={{ marginVertical: 20, borderRadius: 16 }}
+              />
+            )}
 
-          {/* Table */}
-          <View style={styles.table}>
-            {renderHeader()}
-            <FlatList
-              data={salesData}
-              keyExtractor={(_, i) => i.toString()}
-              renderItem={renderRow}
-              scrollEnabled={false}
-            />
+            <View style={styles.table}>
+              <View style={styles.tableHeader}>
+                <Text style={styles.headerCell}>Date</Text>
+                <Text style={styles.headerCell}>Time</Text>
+                <Text style={styles.headerCell}>Subtotal</Text>
+              </View>
+            </View>
           </View>
-        </>
-      )}
-    </ScrollView>
+        }
+        contentContainerStyle={{ paddingBottom: 40 }}
+        data={salesData}
+        keyExtractor={(item, index) => index.toString()}
+        renderItem={({ item }) => {
+          const date = new Date(item.timestamp);
+          return (
+            <View style={styles.tableRow}>
+              <Text style={styles.cell}>{date.toLocaleDateString()}</Text>
+              <Text style={styles.cell}>{date.toLocaleTimeString()}</Text>
+              <Text style={styles.cell}>₱{item.total_price}</Text>
+            </View>
+          );
+        }}
+      />
+    </RefreshWrapper>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -184,30 +166,6 @@ const styles = StyleSheet.create({
   },
   periodButtonActiveText: {
     color: '#fff',
-  },
-  yearNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  yearText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginHorizontal: 20,
-  },
-  arrow: {
-    fontSize: 24,
-    color: '#333',
-  },
-  
-  chartTitle: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'right',
-    marginBottom: 6,
   },
   totalSales: {
     fontSize: 18,
@@ -248,3 +206,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
+
+export default SalesReportScreen;

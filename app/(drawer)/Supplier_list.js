@@ -1,62 +1,87 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import axios from 'axios';
+import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
+import RefreshWrapper from '../../component/Drawer/RefreshWrapper';
 
 const SupplierList = () => {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    // Fetch supplier data from the API
-    axios
-      .get('http://192.168.43.118:8000/api/suppliers/') // Replace with your actual API URL
-      .then((response) => {
-        setSuppliers(response.data);  // Set the suppliers data from API
-        setLoading(false);  // Set loading to false after data is fetched
-      })
-      .catch((err) => {
-        setError('Error fetching data');
-        setLoading(false);  // Stop loading on error
-      });
-  }, []); // This will run once when the component is mounted
+  const fetchSuppliers = async () => {
+    try {
+      const response = await axios.get('http://192.168.1.9:8000/api/suppliers/');
+      setSuppliers(response.data);
+      setLoading(false);
+    } catch (err) {
+      setError('Error fetching data');
+      setLoading(false);
+    }
+  };
 
-  // If loading, show a spinner
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={styles.centeredContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
 
-  // If there's an error, display an error message
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text>{error}</Text>
+      <View style={styles.centeredContainer}>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
 
-  // Render the supplier list using FlatList
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Suppliers</Text>
-      <FlatList
-        data={suppliers}  // Data for the list
-        keyExtractor={(item) => item.id.toString()}  // Ensure unique key for each item
-        renderItem={({ item }) => (
-          <View style={styles.supplierCard}>
-            <Text style={styles.supplierName}>{item.name}</Text>
-            <Text>Contact Person: {item.contact_person}</Text>
-            <Text>Phone: {item.phone}</Text>
-            <Text>Email: {item.email}</Text>
-            <Text>Company: {item.company}</Text>
-            <Text>Address: {item.address}</Text>
+      <Text style={styles.title}>  Supplier Directory</Text>
+
+      <RefreshWrapper onRefresh={fetchSuppliers}>
+        {suppliers.length === 0 ? (
+          <View style={styles.centeredContainer}>
+            <Text style={styles.emptyText}>No suppliers available.</Text>
           </View>
+        ) : (
+          <FlatList
+            data={suppliers}
+            keyExtractor={(item) => item.id.toString()}
+            contentContainerStyle={{ paddingBottom: 20 }}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                <Text style={styles.name}>{item.name}</Text>
+                <View style={styles.infoRow}>
+                  <MaterialIcons name="person" size={16} color="#555" />
+                  <Text style={styles.infoText}> {item.contact_person}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <FontAwesome name="phone" size={16} color="#555" />
+                  <Text style={styles.infoText}> {item.phone}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <MaterialIcons name="email" size={16} color="#555" />
+                  <Text style={styles.infoText}> {item.email}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <MaterialIcons name="business" size={16} color="#555" />
+                  <Text style={styles.infoText}> {item.company}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <MaterialIcons name="location-on" size={16} color="#555" />
+                  <Text style={styles.infoText}> {item.address}</Text>
+                </View>
+              </View>
+            )}
+          />
         )}
-      />
+      </RefreshWrapper>
     </View>
   );
 };
@@ -64,34 +89,54 @@ const SupplierList = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 16,
+    paddingTop: 20,
   },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
+  title: {
+    fontSize: 22,
+    fontWeight: '600',
+    marginBottom: 16,
+    color: '#333',
   },
-  supplierCard: {
+  card: {
     backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 15,
-    elevation: 3, // For shadow effect
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 10,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  supplierName: {
+  name: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#222',
+    marginBottom: 8,
   },
-  loadingContainer: {
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#444',
+  },
+  centeredContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
   },
 });
 

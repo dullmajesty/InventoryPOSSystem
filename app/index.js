@@ -1,103 +1,185 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  TextInput,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { FontAwesome5, Feather } from '@expo/vector-icons';
 import axios from 'axios';
 import { useRouter } from 'expo-router';
-import 'react-native-gesture-handler';
 
-
-const LoginScreen = ({ navigation, onLogin }) => {  // Accept onLogin here
+const LoginScreen = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = () => {
-    const apiUrl = 'http://192.168.43.118:8000/api/login/'; // Use your LAN IP for physical devices
+  const handleLogin = async () => {
+    setError('');
 
-    axios
-      .post(apiUrl, { username, password })
-      .then((response) => {
-        const { token, role } = response.data;
-        const normalizedRole = role.toLowerCase();
+    if (!username.trim() || !password) {
+      setError('Please enter both username and password');
+      return;
+    }
 
-        if (normalizedRole === 'admin') {
-          router.push('/(drawer)/AdminDashboard'); // ✅ Navigate to Admin Dashboard
-        } else if (normalizedRole === 'cashier') {
-          router.push('/(drawer)/dashboard/CashierDashboard'); // Create this screen if needed
-        } else {
-          setError('Invalid role');
-        }
-      })
-      .catch((err) => {
-        console.log(err);
-        setError('Invalid credentials');
+    setLoading(true);
+
+    try {
+      const response = await axios.post('http://192.168.1.9:8000/api/login/', {
+        username: username.trim(),
+        password,
       });
+
+      const { token, role } = response.data;
+      const normalizedRole = role?.toLowerCase();
+
+      if (normalizedRole === 'admin') {
+        router.push('/(drawer)/AdminDashboard');
+      } else if (normalizedRole === 'cashier') {
+        router.push('/(drawer)/dashboard/CashierDashboard');
+      } else {
+        setError('Unauthorized role');
+      }
+    } catch (err) {
+      console.error('Login error:', err?.response?.data || err.message);
+      setError('Invalid username or password');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Username"
-        value={username}
-        onChangeText={setUsername}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        value={password}
-        secureTextEntry
-        onChangeText={setPassword}
-      />
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
+    <LinearGradient colors={['#A1C4FD', '#C2E9FB']} style={styles.container}>
+      <View style={styles.loginBox}>
+        <Text style={styles.header}>SST Inventory POS</Text>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {/* Username */}
+        <View style={styles.inputGroup}>
+          <FontAwesome5 name="user" size={22} color="#7FC8A9" style={styles.iconLeft} />
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            value={username}
+            onChangeText={setUsername}
+            placeholderTextColor="#888"
+            autoCapitalize="none"
+          />
+        </View>
+
+        {/* Password with toggle */}
+        <View style={styles.inputGroup}>
+          <FontAwesome5 name="lock" size={22} color="#7FC8A9" style={styles.iconLeft} />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            secureTextEntry={!showPassword}
+            onChangeText={setPassword}
+            placeholderTextColor="#888"
+          />
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.iconRight}
+          >
+            <Feather name={showPassword ? 'eye-off' : 'eye'} size={22} color="#7FC8A9" />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.loginButton, loading && { backgroundColor: '#7a9dfb' }]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginText}>Login</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#f0f4f8',
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 30,
-    fontWeight: 'bold',
-    marginBottom: 40,
+  loginBox: {
+    width: 300,
+    backgroundColor: '#ffffff',
+    paddingBottom: 30,
+    borderRadius: 15,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  header: {
+    backgroundColor: '#4e73df',
     textAlign: 'center',
-    color: '#4e73df',
+    color: '#fff',
+    paddingVertical: 20,
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  inputGroup: {
+    marginHorizontal: 30,
+    marginTop: 22,
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  iconLeft: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 1,
+  },
+  iconRight: {
+    position: 'absolute',
+    right: 12,
+    zIndex: 1,
   },
   input: {
-    borderWidth: 1,
-    padding: 12,
-    marginBottom: 15,
-    borderRadius: 8,
-    borderColor: '#ddd',
-    backgroundColor: 'white',
+    paddingLeft: 45,
+    paddingRight: 45,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
     fontSize: 16,
+    height: 50,
+    color: '#333',
+    borderWidth: 1,
+    borderColor: '#ddd',
   },
-  button: {
-    backgroundColor: '#4e73df',
+  loginButton: {
+    marginTop: 25,
+    marginHorizontal: 30,
     paddingVertical: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
+    borderRadius: 10,
+    backgroundColor: '#4e73df',
   },
-  buttonText: {
-    color: 'white',
+  loginText: {
+    textAlign: 'center',
+    color: '#fff',
+    fontWeight: '600',
     fontSize: 18,
-    fontWeight: 'bold',
   },
   error: {
-    color: 'red',
-    marginTop: 15,
     textAlign: 'center',
-    fontSize: 16,
+    color: '#ff6b6b',
+    fontSize: 14,
+    marginTop: 15,
   },
 });
 
